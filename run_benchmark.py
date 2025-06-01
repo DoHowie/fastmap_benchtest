@@ -14,7 +14,7 @@ def main() -> None:
     ap.add_argument("map");  ap.add_argument("scen")
     ap.add_argument("-k", type=int, default=10, help="FastMap dims")
     ap.add_argument("-n", type=int, default=None, help="# scen lines (all)")
-    ap.add_argument("-t", "--thresh", type=float, default=0.5,
+    ap.add_argument("-t", "--thresh", type=float, default=0.1,
                     help="flag rows where |err| > THRESH")
     args = ap.parse_args()
 
@@ -65,6 +65,9 @@ def main() -> None:
         print("-" * 90)
         for idx, e, raw in bad:
             print(f"{idx:4d} | {e:10.6f} | {raw}")
+    else:
+        print(f"\nNo cases exceeded the error threshold ({args.thresh}).")
+
 
 if __name__ == "__main__":
     main()

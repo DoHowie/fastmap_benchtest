@@ -5,7 +5,7 @@ from .constants import DIRS_8
 def passable(ch):
     # DAO/Baldur/StarCraft/etc.: ground '.', 'G', optional swamp 'S'
     # Terrain maps: letters 'A'..'Z' EXCEPT the DAO wall/obstacle chars.
-    return ch in ".GS" or ('A' <= ch <= 'Z' and ch not in "T@O")
+    return ch in ".GSW" or ('A' <= ch <= 'Z' and ch not in "T@O")
 
 
 def cell_cost(ch: str) -> float:
@@ -55,11 +55,21 @@ def build_graph(grid):
                 if not passable(grid[nr][nc]):
                     continue
                 # Corner-cut rule
-                if dr and dc and (
-                    not passable(grid[r][nc]) or
-                    not passable(grid[nr][c])
-                ):
-                    continue
+                # ----- diagonal tests -----
+                if dr and dc:
+                    # standard corner-cut block
+                    if (not passable(grid[r][nc]) or
+                        not passable(grid[nr][c])):
+                        continue
+
+                    # NEW: forbid “diagonal   cost-change” shortcuts
+                    here  = cell_cost(grid[r][c])
+                    side1 = cell_cost(grid[r][nc])
+                    side2 = cell_cost(grid[nr][c])
+                    there = cell_cost(grid[nr][nc])
+                    if side1 != here or side2 != here or there != here:
+                        # at least one of the four tiles differs in cost
+                        continue
                 step = math.sqrt(2) if dr and dc else 1.0
                 w    = step * (cell_cost(grid[r][c]) + cell_cost(grid[nr][nc])) / 2
                 G[u].append((vid(nr, nc), w))

@@ -2,8 +2,8 @@ import math
 import numpy as np
 
 def fastmap_L1(emb, a, b):
-    """Plain L1 distance in FastMap space."""
-    return float(np.abs(np.array(emb[a]) - np.array(emb[b])).sum())
+    ea, eb = emb[a], emb[b]
+    return sum(abs(x - y) for x, y in zip(ea, eb))
 
 def octile_heuristic(u, v, width):
     ur, uc = divmod(u, width)
