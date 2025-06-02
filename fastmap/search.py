@@ -1,8 +1,8 @@
 import heapq, math
+from .heuristics import grid_aware_heuristic, octile_heuristic
 
-# ---------------- generic A* --------------------
-def astar_general(graph, start, goal, h):
-    open_   = [(h(start), 0.0, start)]
+def astar_general(graph, start, goal, h): # map, start node, end node, heuristic function
+    open_   = [(h(start), 0.0, start)] # (f, g, node)
     g_best  = {start: 0.0}
     while open_:
         f, g, u = heapq.heappop(open_)
@@ -16,9 +16,6 @@ def astar_general(graph, start, goal, h):
                 g_best[v] = ng
                 heapq.heappush(open_, (ng + h(v), ng, v))
     return math.inf
-
-# ---------------- wrappers using your heuristics -------------
-from .heuristics import grid_aware_heuristic, octile_heuristic
 
 def improved_astar_with_fastmap(graph, start, goal, emb, width):
     h = lambda n: grid_aware_heuristic(n, goal, emb, width)

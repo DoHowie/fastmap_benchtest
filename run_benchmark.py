@@ -1,30 +1,25 @@
-#!/usr/bin/env python3
 import argparse, time, numpy as np
 from pathlib import Path
-
 from fastmap import (
     load_map, load_scen, build_graph,
     FastMap,
 )
 from fastmap.search import improved_astar_with_fastmap
 
-# ──────────────────────────────────────────────────────────────────────
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("map");  ap.add_argument("scen")
     ap.add_argument("-k", type=int, default=10, help="FastMap dims")
     ap.add_argument("-n", type=int, default=None, help="# scen lines (all)")
-    ap.add_argument("-t", "--thresh", type=float, default=0.1,
-                    help="flag rows where |err| > THRESH")
+    ap.add_argument("-t", "--thresh", type=float, default=0.1, help="flag rows where |err| > THRESH")
     args = ap.parse_args()
 
-    # ── build graph & FastMap embedding ───────────────────────────────
     grid, _, _ = load_map(args.map)
     G, W       = build_graph(grid)
     emb        = FastMap(G.copy(), K=args.k).compute_embeddings()
 
-    # ── read scenario lines (keep raw for echo) ───────────────────────
-    scen_raw  = Path(args.scen).read_text().splitlines()[1:]  # skip header
+    # read scenario lines
+    scen_raw  = Path(args.scen).read_text().splitlines()[1:]
     if args.n:  scen_raw = scen_raw[: args.n]
 
     rows, bad = [], []
@@ -46,19 +41,19 @@ def main() -> None:
 
     t1 = time.time()
 
-    # ── full per-case table ───────────────────────────────────────────
+    # full per-case table
     print(f"{'Case':>4} | {'dist':>10} | {'optimal':>10} | {'err':>10}")
     print("-" * 48)
     for idx, d, opt, err in rows:
         print(f"{idx:4d} | {d:10.6f} | {opt:10.6f} | {err:10.6f}")
 
-    # ── summary stats ─────────────────────────────────────────────────
+    # summary stats
     abs_err = [abs(r[3]) for r in rows]
     print("\n--- SUMMARY ---")
     print(f"{len(rows)} cases | mean|err|={np.mean(abs_err):.3e} "
           f"| max|err|={np.max(abs_err):.3e} | {t1-t0:.2f}s")
 
-    # ── problematic rows ──────────────────────────────────────────────
+    # problematic rows
     if bad:
         print(f"\nCases with |err| > {args.thresh}: {len(bad)}\n")
         print(f"{'Idx':>4} | {'err':>10} |  Raw .scen line")
@@ -67,7 +62,6 @@ def main() -> None:
             print(f"{idx:4d} | {e:10.6f} | {raw}")
     else:
         print(f"\nNo cases exceeded the error threshold ({args.thresh}).")
-
 
 if __name__ == "__main__":
     main()

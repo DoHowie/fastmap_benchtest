@@ -12,7 +12,6 @@ def octile_heuristic(u, v, width):
     return max(dx, dy) + (math.sqrt(2) - 1) * min(dx, dy)
 
 def grid_aware_heuristic(u, v, emb, width):
-    """max{FastMap-L1, Octile} to keep admissibility."""
     return max(
         fastmap_L1(emb, u, v),
         octile_heuristic(u, v, width),
