@@ -2,13 +2,13 @@ import math
 from .constants import DIRS_8
 
 def passable(ch):
-    return ch in ".GSW" or ('A' <= ch <= 'Z' and ch not in "T@O")
+    return ch in ".GS" or ('A' <= ch <= 'Z' and ch not in "T@O")
 
 def cell_cost(ch: str) -> float:
-    if ch in ".G":
+    if ch in ".GS":
         return 1.0
-    if ch == "S":
-        return 2.0
+    # if ch == "S":
+    #     return 2.0
     if "A" <= ch <= "Z":
         return ord(ch) - ord("A") + 1
     return math.inf
@@ -53,11 +53,10 @@ def build_graph(grid):
                     # one of the side block is not passable then continue
                     if (not passable(grid[r][nc]) or not passable(grid[nr][c])):
                         continue
-                    here  = cell_cost(grid[r][c])
-                    side1 = cell_cost(grid[r][nc])
-                    side2 = cell_cost(grid[nr][c])
-                    there = cell_cost(grid[nr][nc])
-                    if side1 != here or side2 != here or there != here: # checking they are all same type of block
+                    if (grid[r][c]     != '.' or
+                        grid[r][nc]    != '.' or
+                        grid[nr][c]    != '.' or
+                        grid[nr][nc]   != '.'):
                         continue
                 step = math.sqrt(2) if dr and dc else 1.0 # geometric distance
                 w = step * (cell_cost(grid[r][c]) + cell_cost(grid[nr][nc])) / 2
