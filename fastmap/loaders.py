@@ -1,64 +1,166 @@
+import os
 import math
-from .constants import DIRS_8
+
+def _load_map(filepath):
+    """Load a map from the given filepath and return a 2D grid."""
+    with open(filepath, 'r') as file:
+        lines = file.readlines()
+    
+    # Parse the header
+    type_line = lines[0].strip()
+    height_line = lines[1].strip()
+    width_line = lines[2].strip()
+    map_line = lines[3].strip()
+    
+    # Extract dimensions
+    height = int(height_line.split()[1])
+    width = int(width_line.split()[1])
+    
+    # Extract the grid
+    grid = []
+    for i in range(4, 4 + height):
+        if i < len(lines):
+            row = list(lines[i].strip())
+            # Pad row if necessary
+            while len(row) < width:
+                row.append('@')
+            grid.append(row)
+        else:
+            # Add missing rows as out of bounds
+            grid.append(['@'] * width)
+    
+    return grid, width, height
+
+def _is_passable(cell):
+    """Check if a cell is passable."""
+    terrain_info = {
+        '.': True, 
+        'G': True, 
+        'S': True, 
+        'W': True, 
+        '@': False, 
+        'O': False, 
+        'T': False, 
+    }
+    return terrain_info.get(cell, False)
+
+def can_move_between_terrains(from_terrain, to_terrain):
+    """Check if movement is allowed between two terrain types."""
+    # Define terrain compatibility
+    compatibility = {
+        '.': {'.', 'G', 'S'},
+        'G': {'.', 'G', 'S'},
+        'S': {'.', 'G', 'S'},
+        'W': {'W'}, # water can only go to water
+        '@': set(),
+        'O': set(),
+        'T': set(),
+    }
+    
+    allowed = compatibility.get(from_terrain, set())
+    return to_terrain in allowed
+
+def _build_graph(grid, width, height):
+    """Build a graph from the grid where each cell is connected to its passable neighbors."""
+    graph = {}
+    
+    for y in range(height):
+        for x in range(width):
+            if passable(grid[y][x]):
+                neighbors = []
+                current_terrain = grid[y][x]
+
+                directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+                
+                for dx, dy in directions:
+                    nx, ny = x + dx, y + dy
+                    
+                    # Check bounds
+                    if 0 <= nx < width and 0 <= ny < height:
+                        neighbor_terrain = grid[ny][nx]
+                        
+                        # Check if neighbor is passable and terrain types are compatible
+                        if (passable(neighbor_terrain) and 
+                            can_move_between_terrains(current_terrain, neighbor_terrain)):
+                            
+                            # Check corner cutting for diagonal moves
+                            is_diagonal = dx != 0 and dy != 0
+                            can_move = True
+                            
+                            if is_diagonal:
+                                # Check adjacent cells to prevent corner cutting
+                                adj1_terrain = grid[y][nx] if 0 <= nx < width else '@'
+                                adj2_terrain = grid[ny][x] if 0 <= ny < height else '@'
+                                
+                                # Prevent corner cutting through impassable terrain
+                                if (not passable(adj1_terrain) or 
+                                    not passable(adj2_terrain)):
+                                    can_move = False
+                                
+                                # Also check terrain compatibility for corner cutting
+                                elif (not can_move_between_terrains(current_terrain, adj1_terrain) or
+                                      not can_move_between_terrains(current_terrain, adj2_terrain)):
+                                    can_move = False
+                            
+                            if can_move:
+                                # Calculate cost based on movement type
+                                if is_diagonal:
+                                    cost = math.sqrt(2)  # Diagonal cost
+                                else:
+                                    cost = 1.0  # Straight cost
+                                
+                                neighbors.append(((nx, ny), cost))
+                
+                graph[(x, y)] = neighbors
+    
+    return graph
+
+def load_scen(filepath):
+    """Load scenarios from the given filepath."""
+    scenarios = []
+    with open(filepath, 'r') as file:
+        lines = file.readlines()
+    
+    # Skip the version line
+    for line in lines[1:]:
+        if line.strip():
+            parts = line.strip().split('\t')
+            if len(parts) >= 9:
+                scenario = {
+                    'bucket': int(parts[0]),
+                    'map': parts[1],
+                    'map_width': int(parts[2]),
+                    'map_height': int(parts[3]),
+                    'start_x': int(parts[4]),
+                    'start_y': int(parts[5]),
+                    'goal_x': int(parts[6]),
+                    'goal_y': int(parts[7]),
+                    'optimal_length': float(parts[8])
+                }
+                scenarios.append(scenario)
+    
+    return scenarios
+
+# Compatibility wrappers
+def load_map(path):
+    """
+    Wrapper that keeps the old (grid, H, W) return order.
+    Internally calls the new WC3 loader.
+    """
+    grid, W, H = _load_map(path) # new code returns (grid, width, height)
+    return grid, H, W # old callers expect (grid, H, W)
 
 def passable(ch):
-    return ch in ".GS" or ('A' <= ch <= 'Z' and ch not in "T@O")
+    return _is_passable(ch)
 
-def cell_cost(ch: str) -> float:
-    if ch in ".GS":
-        return 1.0
-    # if ch == "S":
-    #     return 2.0
-    if "A" <= ch <= "Z":
-        return ord(ch) - ord("A") + 1
-    return math.inf
-
-def load_map(path):
-    with open(path) as f:
-        header = [next(f).strip() for _ in range(4)]
-        H = int(header[1].split()[1])
-        W = int(header[2].split()[1])
-        grid = [list(next(f).rstrip()) for _ in range(H)]
-    return grid, H, W
-
-def load_scen(path, limit=None):
-    with open(path) as f:
-        next(f)
-        for i, line in enumerate(f):
-            if limit and i >= limit:
-                break
-            _, _, W, _, sx, sy, gx, gy, opt = line.split()
-            W = int(W)
-            yield int(sy) * W + int(sx), int(gy) * W + int(gx), float(opt)
+def cell_cost(ch):
+    return 1.0 if _is_passable(ch) else math.inf
 
 def build_graph(grid):
-    # turn the ASCII grid into an adjacency dict
     H, W = len(grid), len(grid[0])
-    vid = lambda r, c: r * W + c # vertex id
-    G = {} # initialization of graph, list of tuples for all walkable cells
-
-    for r in range(H):
-        for c in range(W):
-            if not passable(grid[r][c]): # check whether current block is passable
-                continue
-            u = vid(r, c)
-            G[u] = [] # empty neighbor list, max number of elem. = 8
-            for dr, dc in DIRS_8:
-                nr, nc = r + dr, c + dc
-                if not (0 <= nr < H and 0 <= nc < W): # true --> off the map
-                    continue
-                if not passable(grid[nr][nc]): # target block is not passable
-                    continue
-                if dr and dc: 
-                    # one of the side block is not passable then continue
-                    if (not passable(grid[r][nc]) or not passable(grid[nr][c])):
-                        continue
-                    if (grid[r][c]     != '.' or
-                        grid[r][nc]    != '.' or
-                        grid[nr][c]    != '.' or
-                        grid[nr][nc]   != '.'):
-                        continue
-                step = math.sqrt(2) if dr and dc else 1.0 # geometric distance
-                w = step * (cell_cost(grid[r][c]) + cell_cost(grid[nr][nc])) / 2
-                G[u].append((vid(nr, nc), w)) # (vertex id, edge weight from G[u] to G[(nr, nc)])
+    raw_G = _build_graph(grid, W, H)
+    G = {}
+    for (x, y), nbrs in raw_G.items():
+        uid = y * W + x
+        G[uid] = [(ny * W + nx, w) for (nx, ny), w in nbrs]
     return G, W
