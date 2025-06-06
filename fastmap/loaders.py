@@ -46,7 +46,6 @@ def _is_passable(cell):
 
 def can_move_between_terrains(from_terrain, to_terrain):
     """Check if movement is allowed between two terrain types."""
-    # Define terrain compatibility
     compatibility = {
         '.': {'.', 'G', 'S'},
         'G': {'.', 'G', 'S'},
@@ -88,31 +87,26 @@ def _build_graph(grid, width, height):
                             can_move = True
                             
                             if is_diagonal:
-                                # Check adjacent cells to prevent corner cutting
                                 adj1_terrain = grid[y][nx] if 0 <= nx < width else '@'
                                 adj2_terrain = grid[ny][x] if 0 <= ny < height else '@'
-                                
-                                # Prevent corner cutting through impassable terrain
+
                                 if (not passable(adj1_terrain) or 
                                     not passable(adj2_terrain)):
                                     can_move = False
-                                
-                                # Also check terrain compatibility for corner cutting
+
                                 elif (not can_move_between_terrains(current_terrain, adj1_terrain) or
                                       not can_move_between_terrains(current_terrain, adj2_terrain)):
                                     can_move = False
                             
                             if can_move:
-                                # Calculate cost based on movement type
                                 if is_diagonal:
-                                    cost = math.sqrt(2)  # Diagonal cost
+                                    cost = math.sqrt(2)
                                 else:
-                                    cost = 1.0  # Straight cost
+                                    cost = 1.0
                                 
                                 neighbors.append(((nx, ny), cost))
-                
+
                 graph[(x, y)] = neighbors
-    
     return graph
 
 def load_scen(filepath):
@@ -141,7 +135,7 @@ def load_scen(filepath):
     
     return scenarios
 
-# Compatibility wrappers
+# Compatibility wrappers to rework on less code
 def load_map(path):
     """
     Wrapper that keeps the old (grid, H, W) return order.
